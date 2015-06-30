@@ -1,5 +1,6 @@
 var redis = require("redis");
 var express = require('express');
+var async = require('async');
 var ncdc = require('../ncdc');
 
 
@@ -21,14 +22,39 @@ client.on("error", function (err) {
 function finishAutocomplete(res, cacheKey)
 {
 	client.ZRANGE(cacheKey, 0, 10, function(err, values) {
-		client.HMGET("locations", values, function(err, locs) {
 
-			// Remove nulls (can happen if locations are removed )
-			locs = locs.filter(Boolean)
+		// Get the locations and their types in parallel.
+		async.parallel([
+			function(done) {
+				client.HMGET("locations", values, function(err, locs) {
+					done(null, locs)
+				})
+			},
+			function(done) {
+				client.HMGET("locationTypes", values, function(err, locTypes) {
+					done(null, locTypes)
+				})
+			},
+		],
+
+		function(err, results) {
+			// We've gotten the location names and types now.
+			// Process them, and send them out to the client.
+			var locs = results[0]
+			var locTypes = results[1]
 
 			// Give an empty array for no results.
 			if (!locs)
 				locs = []
+
+			locs = locs.map(function(name, index) {
+				if (!name) return null
+
+				return {name: name, type: locTypes[index]}
+			})
+
+			// Remove nulls (can happen if locations are removed )
+			locs = locs.filter(Boolean)
 
 			res.json(locs)
 		})
@@ -42,6 +68,7 @@ function finishAutocomplete(res, cacheKey)
 //     The search query to get autocomplete suggestions for
 // RETURNS: JSON
 //     An array with up to 10 autocomplete suggestions.
+//     Each suggestion is of the form {name: "Washington", type: "State"}
 //     Will be empty of there are no results.
 router.get('/autoc', function(req, res, next) {
 	var q = req.param("q")

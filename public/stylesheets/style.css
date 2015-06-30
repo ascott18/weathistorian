@@ -1,3 +1,17 @@
 body {
 	padding-top: 50px;
 }
+
+.typeaheadEntry {
+	overflow: auto;
+}
+
+.typeaheadLeft {
+	float: left;
+}
+
+.typeaheadRight {
+	float: right;
+	margin-left: 25px;
+	opacity: 0.5;
+}

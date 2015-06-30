@@ -1,15 +1,33 @@
 extends layout
 
 block content
+	script(src='https://cdnjs.cloudflare.com/ajax/libs/angular-ui-bootstrap/0.13.0/ui-bootstrap-tpls.min.js')
+	script(src='/javascripts/home.js')
+
 	.container.col-md-6
 		h1 Weathistorian
 		p Weathistorian is a tool that can be used to view historical weather stats over long timespans.
 	.container.col-md-6
-		.form-group
+		div(ng-controller="locSearch").form-group
 			label: h2 Enter a location
 
-			form(method="get", action="/search")
-				input(type='text', name="q").form-control
-				input(type='submit').btn.btn-primary.pull-right
+			script(type="text/ng-template", id="locTemplate").
+				<a class="typeaheadEntry">
+					<span ng-bind="match.model.name" class="typeaheadLeft" ></span>
+					<span ng-bind="match.model.type" class="typeaheadRight"></span>
+				</a>
+
+			//- form(method="get", action="/search", ng-controller="locSearch")
+			input(
+				type="text",
+				ng-model="asyncSelected"
+				placeholder="Locations loaded via $http"
+				typeahead="loc.name for loc in getLocation($viewValue)"
+				typeahead-loading="loadingLocations"
+				typeahead-template-url="locTemplate").form-control
+
+			i(ng-show="loadingLocations").glyphicon.glyphicon-refresh
+
+			input(type='submit').btn.btn-primary.pull-right
 
 

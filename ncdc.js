@@ -158,7 +158,7 @@ module.exports.nameToWords = nameToWords
 
 
 // Harvest locations for the given location category at the specified offset.
-function harvestLocations(locationcategoryid, offset, baselineScore)
+function harvestLocations(locationcategoryid, catName, offset, baselineScore)
 {
 	apiOut(
 		{
@@ -199,6 +199,9 @@ function harvestLocations(locationcategoryid, offset, baselineScore)
 				// keyed by its ID.
 				client.HSET("locations", id, name)
 
+				// Add the location's parent category to a hash.
+				client.HSET("locationTypes", id, catName)
+
 				name = name.toLowerCase()
 				var score = calcScore(name, baselineScore)
 				var words = nameToWords(name)
@@ -223,14 +226,14 @@ function harvestLocations(locationcategoryid, offset, baselineScore)
 // Begin harvesting location data from NCDC for the given category.
 // baselineScore is a value that will be the most dominant factor in determining
 // the sorted order of the results. Lower values give higher priority.
-function harvestLocationCategory(locationcategoryid, baselineScore)
+function harvestLocationCategory(locationcategoryid, catName, baselineScore)
 {
 	console.log("Starting location harvest: " + locationcategoryid)
 	getNumLocations(locationcategoryid, function(count) {
 		console.log(locationcategoryid + ": Got " + count + " locations")
 		for (var i = 1; i < count; i += 1000)
 		{
-			harvestLocations(locationcategoryid, i, baselineScore)
+			harvestLocations(locationcategoryid, catName, i, baselineScore)
 		}
 	})
 }
@@ -249,6 +252,7 @@ function startLocationHarvest()
 				if (!exists)
 				{
 					client.HDEL("locations", key)
+					client.HDEL("locationTypes", key)
 					console.log("Pruned location " + key)
 				}
 				callback()
@@ -256,11 +260,11 @@ function startLocationHarvest()
 		},
 		function() {
 			// A low baseline score (param2) gives higher position in searches
-			harvestLocationCategory("ZIP", 5)
-			harvestLocationCategory("CNTY", 4)
-			harvestLocationCategory("CITY", 3)
-			harvestLocationCategory("ST", 2)
-			harvestLocationCategory("CNTRY", 1)
+			harvestLocationCategory("ZIP", "Zip", 5)
+			harvestLocationCategory("CNTY", "County", 4)
+			harvestLocationCategory("CITY", "City", 3)
+			harvestLocationCategory("ST", "State", 2)
+			harvestLocationCategory("CNTRY", "Country", 1)
 		})
 	})
 
@@ -272,7 +276,7 @@ function startLocationHarvest()
 // AND FOR THE LOVE OF GOD, COMMENT OUT THE OTHER LINE
 // IN CASE THIS MAKES IT INTO PRODUCTION
 
-//startLocationHarvest();
+// startLocationHarvest();
 
 // do it in an hour. Prevents excessive harvests during development.
 setTimeout(startLocationHarvest, 1000*60*60)
